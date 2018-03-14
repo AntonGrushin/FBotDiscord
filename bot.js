@@ -83,7 +83,7 @@ bot.on('error', function(message) {
 // Login
 bot.login(config.token);
 
-////////////////////////////////////////////////////////////////////
+
 //=====
 
 //Read Chatlog Messages
@@ -305,12 +305,7 @@ function check_current_lobby_game( callback ) {
 							if(config.StopReportSpamEnable && Players[plId][13] < config.MessagesCountRequired)
 							{
 								//Delete Join Message
-								var action = [];
-								action[0] = 0;
-								action[1] = Players[plId][14];
-								action[2] = "";
-								action[3] = config.channels.ingamelobbychannel;
-								Actions.push(action);
+								Players[plId][14].delete();
 							}
 							else
 								if(Date.now() - LastTimeGameLoadingReported >= config.ReportedSafeTime*1000)
@@ -333,14 +328,6 @@ function check_current_lobby_game( callback ) {
 						LobbyReady = true;
 					LastTimeGameLoadingReported = Date.now();
 				}
-				//game status changed, report game LAUNCH
-				else if(LastGameStartedReported == result[0]['id'] && LastGameStatus != result[0]['status'] && result[0]['id']>0 )
-				{
-					LastGameStatus = result[0]['status'];
-					//sendMessage({ to: dbInfo.ingamelobbychannel, message: '<FBot> Game started loading. Players will no longer be able to see your messages.' });
-					LobbyReady = false;
-					reportGameStart(PreviousPlayersList);
-				}
 				//New game id captured, report LOBBY CREATION
 				else if( LastGameStartedReported !=0 && LastGameStartedReported != result[0]['id'] && result[0]['id']>0 )
 				{
@@ -360,10 +347,7 @@ function check_current_lobby_game( callback ) {
 						var NewName = config.LobbyChannelBaseName+"_"+result[0]['players']+"l8"
 						if(ThisIsTestBot)
 							logger.info('Changing name to: "'+NewName+'"');
-						/*bot.editChannelInfo({
-							channelID: dbInfo.ingamelobbychannel,
-							name: NewName
-						});*/
+
 						bot.channels.get(config.channels.ingamelobbychannel).setName(NewName)
 						CurrentPlayersAmountInLobby = result[0]['players'];
 					}
@@ -490,106 +474,59 @@ function loopHere( callback ) {
 	setTimeout(loopHere, (config.SecondsDelayMessagesCheck * 1000));	
 }
 
-/*function performActions( callback )
-{
-	//  Actions Array Structure
-	//	0 - action 
-	//	1 - ID
-	//	2 - msg
-	//	3 - ChannelID
-	//	
-	//	Actions:
-	//	[0] Delete message of ID in ChannelID
-	//	[1] Add Reaction 'msg' to message of ID in ChannelID
-	//	[2] Edit message ID with new content 'msg' in ChannelID
-	
-	//console.log(Actions);
-	if(Actions.length > 0)
-	{
-		//We always read action[0] because it is the oldest
-		if(Actions[0][0] == 0)
-		{
-			//Delete message of ID
-			if(Actions[0][3] && Actions[0][1])
-				bot.deleteMessage({
-					channelID: Actions[0][3],
-					messageID: Actions[0][1]
-				});
-		}
-		else if(Actions[0][0] == 1)
-		{
-			//Add Reaction 'msg' to message of ID
-			bot.addReaction({
-				channelID: Actions[0][3],
-				messageID: Actions[0][1],
-				reaction: Actions[0][2]
-			}, function(err, res) {
-				if (err) { logger.error("Couldn't Add Reaction '"+Actions[0][2]+"'!") }
-			});
-		}
-		else if(Actions[0][0] == 2)
-		{
-			//Edit message ID with new content 'msg'
-			
-		}
-		//delete this action
-		Actions.splice(0, 1)
-	}
-	setTimeout(performActions, ActionsWaitTime);
-}
-*/
-
 //Run the main Loop
 loopHere( );
-//performActions( );
-//roleUpdate( );			
 
-/*
-bot.on('message', function (user, userID, channelID, message, evt) {
+
+//Handle Commands
+bot.on('message', msg => {	
+	
+	//user		msg.author.username
+	//userID 		msg.author.id
+	//channelID	msg.channel.id
+	//messageid	msg.id
+	
+	
 	
 	
     // Our bot needs to know if it needs to execute a command
     // for this script it will listen for messages that will start with `!`
     
 	//Message is in lobby-chat-channel and its not bot himself
-	if(channelID == dbInfo.ingamelobbychannel && userID != dbInfo.botSelfUserID )
+	if(msg.channel.id == config.channels.ingamelobbychannel && msg.author.id != config.channels.botSelfUserID )
 	{
 		//console.log(message);
 		if(LobbyReady)
 		{
 			var msgToSend = "";
-			var userName = user;
-			//console.log(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[userID]);
-			if(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[userID])
-				if(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[userID].nick && bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[userID].nick != user)
-					userName = bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[userID].nick;
+			var userName = msg.author.username;
 			
-			if(message.length > config.RowCharactersLimit)
+			
+			if(msg.content.length > config.RowCharactersLimit)
 			{
-				msgToSend = message.substring(0, config.RowCharactersLimit);
-				sendMessage({ to: dbInfo.ingamelobbychannel, message: '<FBot> Your message was too long and got cutted!' });
+				msgToSend = msg.content.substring(0, config.RowCharactersLimit);
+				sendMessage(config.channels.ingamelobbychannel, '<FBot> Your message was too long and got cutted!' );
 			}
 			else
-				msgToSend = message;
+				msgToSend = msg.content;
 			if(ThisIsTestBot)
-				logger.info(user+': '+msgToSend);
+				logger.info(msg.author.username+': '+msgToSend);
 			msgToSend = emoji.unemojify(msgToSend);
 			if(ThisIsTestBot)
-				logger.info(user+': (emojiReplace): '+msgToSend);
+				logger.info(msg.author.username+': (emojiReplace): '+msgToSend);
 			msgToSend = msgToSend.replace(/[^a-zA-Zа-яА-Я :!$?\(\)\-\+\\\/\[\]0-9*\^\%\@~\"\'<>;:.,=_]/g, "");
-			//var qry = knex('chatlog').insert({datetime: knex.fn.now(), gameid: LastGameStartedReported, gamestatus: '0', gameFinished: '0', name: user, message: message, target: 'DISCORD'}).into('wwt_current_games')
-			knex('chatlog').insert({gameid: LastGameStartedReported, gamestatus: '0', gameFinished: '0', name: user, message: userName+': '+msgToSend, target: 'DISCORD'}).into('chatlog').then(function (a) {  });
+			knex('chatlog').insert({gameid: LastGameStartedReported, gamestatus: '0', gameFinished: '0', name: msg.author.username, message: userName+': '+msgToSend, target: 'DISCORD'}).into('chatlog').then(function (a) {  });
 			
 			//console.log(qry.toString());
 		}
 		else
-			sendMessage({ to: dbInfo.ingamelobbychannel, message: '<FBot> Lobby is not created yet, there is noone to talk to here. Wait few seconds please.' });
+			sendMessage(config.channels.ingamelobbychannel, '<FBot> Lobby is not created yet, there is noone to talk to here. Wait few seconds please.' );
 		
 		//knex('chatlog').insert({title: 'Slaughterhouse Five'})
 	}
 	
 	//'suggestions' channel message checking and adding Vote emoji's
-	if(channelID == dbInfo.suggestionschannel && userID != dbInfo.botSelfUserID)
+	if(msg.channel.id == config.channels.suggestionschannel && msg.author.id != config.channels.botSelfUserID)
 	{
 		//var UsersIDs = []; 		//IDs of users that wrote in 'sugestions' channel
 		//var UsersTimes = [];	//When that happend (above)
@@ -597,7 +534,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 		var addUser = false;
 		if(UsersIDs.length > 0)
 		{
-			var arrayID = UsersIDs.indexOf(userID);
+			var arrayID = UsersIDs.indexOf(msg.author.id);
 			if(arrayID > -1)
 			{
 				if(Date.now() - UsersTimes[arrayID] <= config.SuggestionsTimeoutHours*3600000)
@@ -614,94 +551,64 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 		if(addUser)
 		{
 			//Add user to the array
-			UsersIDs.push(userID);
+			UsersIDs.push(msg.author.id);
 			UsersTimes.push(Date.now());
-			//logger.info('RepeatedMessage in <Suggestions> by user '+user+', Date: '+Date.now()+', Message: ');
-			//logger.info(message);
 		}
 		
-		//var SuggestionsTimeoutMinutes = 15; 	//Users wont be able to write messages to 'sugestions' channel more often than this amount of minutes
-		//var config.SuggestionsDeleteWaitTime = 60;		//Messages that are written in less than (above) minutes will be deleted after this amount of seconds
 		if(passed)
 		{
 			//Add ThumbsUp/Down to every message in 'suggestions' channel
-			
-			setTimeout(function () {
-					var action = [];
-					action[0] = 1;
-					action[1] = evt.d.id;
-					action[2] = "👍";
-					//action[2] = "<408769454344896513>";
-					action[3] = channelID;
-					Actions.push(action);
-					var action = [];
-					action[0] = 1;
-					action[1] = evt.d.id;
-					action[2] = "👎";
-					//action[2] = "<408769454315536384>";
-					action[3] = channelID;
-					Actions.push(action);
-					
-				}, 100);
+			if(ThisIsTestBot)
+			{
+				msg.react("👍");
+				msg.react("👎");
+			}
+			else
+			{
+				msg.react(msg.guild.emojis.get('408769454344896513'));
+				msg.react(msg.guild.emojis.get('408769454315536384'));
+			}
 		}
 		else
 		{
-			logger.info('RepeatedMessage in <Suggestions> by user '+user+', Date: '+Date.now()+', Message: ');
-			logger.info(message);
+			logger.info('RepeatedMessage in <Suggestions> by user '+msg.author.username+', Date: '+Date.now()+', Message: ');
+			logger.info(msg.content);
 			
-			sendMessage({ to: dbInfo.suggestionschannel, message: '<@'+userID+'>, This channel is made for suggestions only, you can write here only once per '+config.SuggestionsTimeoutHours+' hours.\nIf you wanted to add something to your suggestion, please, edit your previous message and add it there.\nIf you want to discuss someone’s suggestion, use <#381052237306265601> channel.\nYour last message will be deleted in '+config.SuggestionsDeleteWaitTime+' seconds, quickly, copy it before it disappears! :worried:' });
-			setTimeout(function () {
-					var action = [];
-					action[0] = 0;
-					action[1] = evt.d.id;
-					action[2] = "";
-					action[3] = dbInfo.suggestionschannel;
-					Actions.push(action);
-				}, config.SuggestionsDeleteWaitTime*1000);
+			sendMessage(config.channels.suggestionschannel, '<@'+msg.author.id+'>, This channel is made for suggestions only, you can write here only once per '+config.SuggestionsTimeoutHours+' hours.\nIf you wanted to add something to your suggestion, please, edit your previous message and add it there.\nIf you want to discuss someone’s suggestion, use <#381052237306265601> channel.\nYour last message will be deleted in '+config.SuggestionsDeleteWaitTime+' seconds, quickly, copy it before it disappears! :worried:' );
+			msg.delete( config.SuggestionsDeleteWaitTime*1000 );
 		}
 	}
 	
 	//Delete own Bot's Warning messages after timeout
-	if(channelID == dbInfo.suggestionschannel && userID == dbInfo.botSelfUserID)
-	{
-		setTimeout(function () {
-			var action = [];
-			action[0] = 0;
-			action[1] = evt.d.id;
-			action[2] = "";
-			action[3] = dbInfo.suggestionschannel;
-			Actions.push(action);
-		}, config.SuggestionsDeleteWaitTime*1000);
-	}
+	if(msg.channel.id == config.channels.suggestionschannel && msg.author.id == config.channels.botSelfUserID)
+		msg.delete( config.SuggestionsDeleteWaitTime*1000 );
 	
 	//Chat the Log in log file
 	if(config.EnableChatLog)
 	{
 		var channelName = "";
-		if(channelID == dbInfo.ingamelobbychannel)
+		if(msg.channel.id == config.channels.ingamelobbychannel)
 			channelName = config.LobbyChannelBaseName;
 		else
-			if(bot.channels[channelID])
-				channelName = bot.channels[channelID].name;
+			if(bot.channels[msg.channel.id])
+				channelName = bot.channels[msg.channel.id].name;
 			else
 				channelName = "Private";
 		
-		var writeThis = evt.d.timestamp+" "+evt.d.author.username+" (ID:"+evt.d.author.id+"): "+evt.d.content+"\n"
+		var writeThis = msg.createdTimestamp+" "+msg.author.username+" (ID:"+msg.author.id+"): "+msg.content+"\n"
 		
 		fs.appendFile(config.ChatLogRootFolder+channelName+".log", writeThis, function(err) {
 			if(err) {
 				logger.error("Error Writing Message log file: "+err);
 			}
-
-			//console.log("The file was saved!");
 		});
 	}
 	
 	//Capture Player Join messages in in-game_lobby channel
-	if(channelID == dbInfo.ingamelobbychannel && userID == dbInfo.botSelfUserID )
+	if(msg.channel.id == config.channels.ingamelobbychannel && msg.author.id == config.channels.botSelfUserID )
 	{
 		var regex = /([\S]+)[@]([a-zA-Z.]+) joined!/i;
-		var found = message.match(regex);
+		var found = msg.content.match(regex);
 		if(found)
 		{
 			var server = "";
@@ -720,26 +627,19 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			var plId = findPlayerInPlayers(Players, found[1], server);
 			if(plId>=0)
 			{
-				Players[plId][14] = evt.d.id;
+				Players[plId][14] = msg;
 			}
 		}
 	}
 	//Delete error reply
-	if( ( message == responces.UnknownCommandMsg || message == responces.HelpNotify || message == responces.UnknownArgument || message == responces.UnknownAuthCode || message == responces.AuthMessage || message == responces.AuthMessageChanged || message == responces.RandomQuoteWrong || message == responces.CommandNotAllowedHere) && channelID != dbInfo.robotSpamChannel && userID == dbInfo.botSelfUserID )
+	if( ( msg.content == responces.UnknownCommandMsg || msg.content == responces.HelpNotify || msg.content == responces.UnknownArgument || msg.content == responces.UnknownAuthCode || msg.content == responces.AuthMessage || msg.content == responces.AuthMessageChanged || msg.content == responces.RandomQuoteWrong || msg.content == responces.CommandNotAllowedHere) && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID )
 	{
-		setTimeout(function () {
-			var action = [];
-			action[0] = 0;
-			action[1] = evt.d.id;
-			action[2] = "";
-			action[3] = channelID;
-			Actions.push(action);
-		}, config.InfMsgDisplayTimeSec*1000);
+		msg.delete( config.InfMsgDisplayTimeSec*1000 );
 	}
 		
 	
-	if (message.substring(0, 1) == '!') {
-        var args = message.substring(1).split(' ');
+	if (msg.content.substring(0, 1) == '!') {
+        var args = msg.content.substring(1).split(' ');
         var cmd = args[0];
 
         args = args.splice(1);
@@ -752,14 +652,8 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			case 'help':
 			{
                 //Send in private chat
-				sendMessage({
-					to: userID,
-					message: responces.HelpMessage
-				});
-				sendMessage({
-					to: channelID,
-					message: responces.HelpNotify
-				});
+				sendMessage(msg.author.id, responces.HelpMessage);
+				sendMessage(msg.channel.id, responces.HelpNotify);
 				break;
 			}
 			case 'auth':
@@ -771,7 +665,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			    var AllGood = true;
 				if(args == "uE6dZ" || !args)
 				{
-					sendMessage({ to: channelID, message: responces.UnknownAuthCode });
+					sendMessage(msg.channel.id, responces.UnknownAuthCode );
 					AllGood = false;
 				}
 				else
@@ -783,10 +677,9 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						
 						if(result.length == 1)
 						{
-							//result[0]['players_list'].split("	");
 							knex('discord').select('id')
 								.where('gametrack_id', '=', result[0]['id'])
-								.orWhere('discord_userid', '=', userID)
+								.orWhere('discord_userid', '=', msg.author.id)
 							  .then(function (resultTwo) {
 									if(resultTwo.length > 0)
 									{
@@ -797,12 +690,12 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 										  gametrack_id: result[0]['id'],
 										  wc3_name: result[0]['name'],
 										  wc3_server : result[0]['realm'],
-										  discord_userid: userID,
-										  discord_name: user
+										  discord_userid: msg.author.id,
+										  discord_name: msg.author.username
 										})
 										.then(function(a) {
-											logger.info("Auth: Updating discord record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+user+") ID:'"+userID+"'.");
-											sendMessage({ to: channelID, message: responces.AuthMessageChanged });
+											logger.info("Auth: Updating discord record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+") ID:'"+msg.author.id+"'.");
+											sendMessage(msg.channel.id, responces.AuthMessageChanged );
 										})
 										.catch(function(error) {
 											logger.error(error)
@@ -815,11 +708,11 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 											  gametrack_id: result[0]['id'],
 											  wc3_name: result[0]['name'],
 											  wc3_server : result[0]['realm'],
-											  discord_userid: userID,
-											  discord_name: user
+											  discord_userid: msg.author.id,
+											  discord_name: msg.author.username
 											}).into('discord').then(function (a) { 
-												logger.info("Auth: Adding new record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+user+") ID:'"+userID+"'.");
-												sendMessage({ to: channelID, message: responces.AuthMessage });
+												logger.info("Auth: Adding new record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+") ID:'"+msg.author.id+"'.");
+												sendMessage(msg.channel.id, responces.AuthMessage );
 											});
 										
 										
@@ -831,7 +724,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 										  password: "uE6dZ"
 										})
 										.then(function(a) {
-											//logger.info("Auth: Updating discord record for user wc3: '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+user+").");
+											//logger.info("Auth: Updating discord record for user wc3: '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+").");
 										})
 										.catch(function(error) {
 											logger.error(error)
@@ -840,7 +733,7 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 						}
 						else
 						{
-							sendMessage({ to: channelID, message: responces.AuthCodeNotFound });
+							sendMessage(msg.channel.id, responces.AuthCodeNotFound );
 							//break;
 							AllGood = false;
 						}
@@ -860,28 +753,28 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 			{
                 if(!args)
 				{
-					//Notify this user when current lobby starts loading
+					//TODO Notify this user when current lobby starts loading
 					
 				}
 				else if(args == "off" || args == 0)
 				{
-					//disable notification for current user
+					//TODO disable notification for current user
 					
 				}
 				else if(args+1 > 0)
 				{
-					//Notify user when there are 'args' amount of players in the lobby
+					//TODO Notify user when there are 'args' amount of players in the lobby
 					
 				}
 				else
-					sendMessage({ to: channelID, message: responces.UnknownArgument });	
+					sendMessage(msg.channel.id, responces.UnknownArgument );	
 				
 				break;
 			}
 			case 'quote':
 			case 'q':
 			{
-				if(channelID != dbInfo.ingamelobbychannel)
+				if(msg.channel.id != config.channels.ingamelobbychannel)
 				{
 					var requestString = args[0].split('@');
 					var who = requestString[0];
@@ -901,11 +794,11 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							
 							if(result.length == 1)
 							{
-								sendMessage({ to: channelID, message: result[0]['name']+"@"+serverShort(result[0]['server'])+" once said:\n```fix\n"+result[0]['message']+"\n```" });
+								sendMessage(msg.channel.id, result[0]['name']+"@"+serverShort(result[0]['server'])+" once said:\n```fix\n"+result[0]['message']+"\n```" );
 							}
 							else
 							{
-								sendMessage({ to: channelID, message: "No quotes found :(" });
+								sendMessage(msg.channel.id, "No quotes found :(" );
 								//break;
 								AllGood = false;
 							}
@@ -926,19 +819,19 @@ bot.on('message', function (user, userID, channelID, message, evt) {
 							
 							if(result.length == 1)
 							{
-								sendMessage({ to: channelID, message: result[0]['name']+"@"+serverShort(result[0]['server'])+" once said:\n```fix\n"+result[0]['message']+"\n```" });
+								sendMessage(msg.channel.id,result[0]['name']+"@"+serverShort(result[0]['server'])+" once said:\n```fix\n"+result[0]['message']+"\n```" );
 							}
 							
 					  });
 					}
 					else
 					{
-						sendMessage({ to: channelID, message: responces.RandomQuoteWrong });
+						sendMessage(msg.channel.id, responces.RandomQuoteWrong );
 					}
 				}
 				else
 				{
-					sendMessage({ to: channelID, message: responces.CommandNotAllowedHere });
+					sendMessage(msg.channel.id, responces.CommandNotAllowedHere );
 				}
 				
 				
@@ -947,19 +840,11 @@ bot.on('message', function (user, userID, channelID, message, evt) {
             break;
             default:
 			{
-				sendMessage({ to: channelID, message: responces.UnknownCommandMsg });
+				sendMessage(msg.channel.id, responces.UnknownCommandMsg );
 			}
         }
 		//Delete command if it is not in robot_spam channel
-		if(channelID != dbInfo.robotSpamChannel)
-			setTimeout(function () {
-				var action = [];
-				action[0] = 0;
-				action[1] = evt.d.id;
-				action[2] = "";
-				action[3] = channelID;
-				Actions.push(action);
-			}, config.CommandsDeleteTimeSec*1000);
+		if(msg.channel.id != config.channels.robotSpamChannel)
+			msg.delete( config.CommandsDeleteTimeSec*1000 )
     }
 })
-*/

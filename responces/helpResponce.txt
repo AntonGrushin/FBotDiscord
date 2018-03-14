@@ -1,0 +1,22 @@
+Greetings!
+
+Our bot handles following commands:
+```fix
+AUTHORIZATION
+```
+__You can link your Warcraft account to your Discord. If you do so, you will be given ‘registered’ rank along with other that you deserve:__
+*Champions – if you are in top 10,*
+*Veteran – if you ever was in top 10,*
+*Top50 – if you are in top 50.*
+This will track all the changes as well.
+
+If you want this, you need to authorize your account:
+1.    Join Warcraft lobby channel of FBot (you can check current games here: http://bot.vofpro.com/ ) under account that you want to link.
+2.    Type this command in game to get authorization code: 
+```!getcode```
+You will see private message with the code that you need to remember.
+3.    Type retrieved code in #robot_spam channel. (You can do it in any other channel too, but your message will be deleted shortly after):
+```!auth your_code```
+Example:
+```!auth 76Gty```
+(This code is single-use, so don’t worry that someone will see it – he won’t be able to use it after you)

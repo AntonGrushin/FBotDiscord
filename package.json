@@ -1,0 +1,20 @@
+{
+  "name": "Fbot",
+  "version": "2.0.0",
+  "description": "Chat bot for exchanging messages between Warcraft 3 and Discord",
+  "main": "bot.js",
+  "author": "Anton Grushin",
+  "license": "MIT",
+  "dependencies": {
+    "bot.js": "0.0.1",
+    "bufferutil": "^3.0.3",
+    "discord.js": "^11.3.2",
+    "emoji-replace": "^1.0.1",
+    "knex": "^0.12.7",
+    "mysql": "^2.13.0",
+    "node-emoji": "^1.8.1",
+    "node-schedule": "^1.2.0",
+    "uws": "^9.14.0",
+    "winston": "^2.4.0"
+  }
+}

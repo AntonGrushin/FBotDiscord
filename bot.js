@@ -2,8 +2,8 @@ const Discord = require('discord.js');
 const bot = new Discord.Client();
 var logger = require('winston');
 //var emoji = require('node-emoji')
-var fs = require('fs');
 var emoji = require('./node-emoji_copy/index.js')
+var fs = require('fs');
 
 var ThisIsTestBot = false;
 
@@ -12,6 +12,8 @@ if(ThisIsTestBot)
 else
 	var config = require('./config');
 
+// turn off limits by default (BE CAREFUL)
+require('events').EventEmitter.prototype._maxListeners = 0;
 
 //Knex
 var knex = require('knex')(config.db);
@@ -35,10 +37,10 @@ var Players = [];
 var BotReady = false; //This turns true when we are connected
 
 //Messages to reply
-//Read responces from files
-var responces = require('./responces/otherResponces.js');
+//Read responses from files
+var responses = require('./responses/otherResponses.js');
 var HelpMessage = "";
-fs.readFile('./responces/helpResponce.txt', 'utf8', function(err, data) { HelpMessage = data; });
+fs.readFile('./responses/helpResponce.txt', 'utf8', function(err, data) { HelpMessage = data; });
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -197,13 +199,13 @@ function addRemoveRole( guildMember, role, toAdd=true )
 	if(toAdd)
 	{
 		guildMember.addRole(role);
-		sendMessage(config.channels.robotSpamChannel, responces.RoleGiven.replace('%USERID%', guildMember.id).replace('%ROLENAME%', ThisRole.name) );
+		sendMessage(config.channels.robotSpamChannel, responses.RoleGiven.replace('%USERID%', guildMember.id).replace('%ROLENAME%', ThisRole.name) );
 	}
 	//Remove the role
 	else
 	{
 		guildMember.removeRole(role);
-		sendMessage(config.channels.robotSpamChannel, responces.RoleRemoved.replace('%USERID%', guildMember.id).replace('%ROLENAME%', ThisRole.name) );
+		sendMessage(config.channels.robotSpamChannel, responses.RoleRemoved.replace('%USERID%', guildMember.id).replace('%ROLENAME%', ThisRole.name) );
 	}
 }
 
@@ -239,17 +241,19 @@ function check_current_lobby_game( callback ) {
 					//Report new players in the list (Joining)
 					for(i=0; i<PlayersList.length; i++)
 					{
-						if(! findPlayer(PreviousPlayersList, PlayersList[i][1], PlayersList[i][6]) && LastGameStartedReported != 0)
+						if(! findPlayer(PreviousPlayersList, PlayersList[i][1], PlayersList[i][6]) )
 						{
-							if(PlayersList[i][19]>0)	//Player '+PlayersList[i][1]+'@'+PlayersList[i][6]+' joined
-								sendMessage(config.channels.ingamelobbychannel, '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! Games: '+PlayersList[i][19]+', ww: '+PlayersList[i][23]+'/'+PlayersList[i][21]+', vill: '+PlayersList[i][22]+'/'+PlayersList[i][20]+'. Elo: '+Math.round(PlayersList[i][26])+', Rank: '+PlayersList[i][24]+'.`');
-							else
-								sendMessage(config.channels.ingamelobbychannel, '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! No games played yet.`');
-							
-							//report to wc3_log channel
-							if(config.ReportIPs)
-								sendMessage(config.channels.wc3logchannel, '**'+PlayersList[i][1]+'**@'+serverShort(PlayersList[i][6])+': IP: __'+PlayersList[i][3]+'__, host: __'+PlayersList[i][4]+'__, (__'+PlayersList[i][5]+'__)' );
-							
+							if( LastGameStartedReported != 0 )
+							{
+								if(PlayersList[i][19]>0)	//Player '+PlayersList[i][1]+'@'+PlayersList[i][6]+' joined
+									sendMessage(config.channels.ingamelobbychannel, '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! Games: '+PlayersList[i][19]+', ww: '+PlayersList[i][23]+'/'+PlayersList[i][21]+', vill: '+PlayersList[i][22]+'/'+PlayersList[i][20]+'. Elo: '+Math.round(PlayersList[i][26])+', Rank: '+PlayersList[i][24]+'.`');
+								else
+									sendMessage(config.channels.ingamelobbychannel, '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! No games played yet.`');
+								
+								//report to wc3_log channel
+								if(config.ReportIPs)
+									sendMessage(config.channels.wc3logchannel, '**'+PlayersList[i][1]+'**@'+serverShort(PlayersList[i][6])+': IP: __'+PlayersList[i][3]+'__, host: __'+PlayersList[i][4]+'__, (__'+PlayersList[i][5]+'__)' );
+							}
 							//Add this player to Players[]
 							/*	Players Array Structure
 								0 name
@@ -298,7 +302,7 @@ function check_current_lobby_game( callback ) {
 							if(config.StopReportSpamEnable && Players[plId][13] < config.MessagesCountRequired)
 							{
 								//Delete Join Message
-								if(Players[plId][14] != null)
+								if(Players[plId][14] != '0')
 									Players[plId][14].delete();
 							}
 							else
@@ -417,6 +421,9 @@ function roleUpdate( callback )
 						if(!IsRegistered)
 							WillHaveRegistered = true;
 						
+						//Debug line
+						//console.log(resultView[z]['discord_userid']+": IsTop10: "+(IsTop10?"YES":"NO")+", IsTop50: "+(IsTop50?"YES":"NO")+", IsVeteran: "+(IsVeteran?"YES":"NO")+"; =====  WillHaveTop10: "+(WillHaveTop10?"YES":"NO")+", WillHaveTop50: "+(WillHaveTop50?"YES":"NO")+", WillHaveVeteran: "+(WillHaveVeteran?"YES":"NO"));
+						
 						// == Give & Remove roles ==
 						//registered
 						if(WillHaveRegistered && !IsRegistered)
@@ -438,7 +445,7 @@ function roleUpdate( callback )
 							WillHaveVeteran = false;
 						}
 						//veteran
-						if(WillHaveVeteran && !IsVeteran)
+						if(WillHaveVeteran && !IsVeteran && !WillHaveTop10)
 						{
 							addRemoveRole( guildMember, config.roles.veteran )
 							
@@ -450,7 +457,7 @@ function roleUpdate( callback )
 							WillHaveTop50 = false;
 						}
 						//top50
-						if(WillHaveTop50 && !IsTop50)
+						if(WillHaveTop50 && !IsVeteran && !IsTop50 && !WillHaveTop10 && !WillHaveVeteran)
 						{
 							addRemoveRole( guildMember, config.roles.top50 )
 							
@@ -584,7 +591,7 @@ bot.on('message', msg => {
 			logger.info('RepeatedMessage in <Suggestions> by user '+msg.author.username+', Date: '+Date.now()+', Message: ');
 			logger.info(msg.content);
 			
-			sendMessage(config.channels.suggestionschannel, responces.RepeatedSuggestion.replace('%USERID%', msg.author.id).replace('%TIMEOUTHOURS%', config.SuggestionsTimeoutHours).replace('%DELETEWAITTIME%', config.SuggestionsDeleteWaitTime) );
+			sendMessage(config.channels.suggestionschannel, responses.RepeatedSuggestion.replace('%USERID%', msg.author.id).replace('%TIMEOUTHOURS%', config.SuggestionsTimeoutHours).replace('%DELETEWAITTIME%', config.SuggestionsDeleteWaitTime) );
 			msg.delete( config.SuggestionsDeleteWaitTime*1000 );
 		}
 	}
@@ -642,7 +649,7 @@ bot.on('message', msg => {
 		}
 	}
 	//Delete bot reply
-	if( ( msg.content == responces.UnknownCommandMsg || msg.content == responces.HelpNotify || msg.content == responces.UnknownArgument || msg.content == responces.UnknownAuthCode || msg.content == responces.AuthMessage || msg.content == responces.AuthMessageChanged || msg.content == responces.RandomQuoteWrong || msg.content == responces.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID )
+	if( ( msg.content == responses.UnknownCommandMsg || msg.content == responses.HelpNotify || msg.content == responses.UnknownArgument || msg.content == responses.UnknownAuthCode || msg.content == responses.AuthMessage || msg.content == responses.AuthMessageChanged || msg.content == responses.RandomQuoteWrong || msg.content == responses.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID )
 	{
 		msg.delete( config.InfMsgDisplayTimeSec*1000 );
 	}
@@ -664,7 +671,7 @@ bot.on('message', msg => {
                 //Send in private chat
 				msg.author.send(HelpMessage)
 				if(msg.channel.type != "dm")
-					msg.reply(responces.HelpNotify);
+					msg.reply(responses.HelpNotify);
 				break;
 			}
 			case 'auth':
@@ -676,7 +683,7 @@ bot.on('message', msg => {
 			    var AllGood = true;
 				if(args == "uE6dZ" || !args)
 				{
-					sendMessage(msg.channel.id, responces.UnknownAuthCode );
+					sendMessage(msg.channel.id, responses.UnknownAuthCode );
 					AllGood = false;
 				}
 				else
@@ -706,7 +713,7 @@ bot.on('message', msg => {
 										})
 										.then(function(a) {
 											logger.info("Auth: Updating discord record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+") ID:'"+msg.author.id+"'.");
-											sendMessage(msg.channel.id, responces.AuthMessageChanged );
+											sendMessage(msg.channel.id, responses.AuthMessageChanged );
 										})
 										.catch(function(error) {
 											logger.error(error)
@@ -723,7 +730,7 @@ bot.on('message', msg => {
 											  discord_name: msg.author.username
 											}).into('discord').then(function (a) { 
 												logger.info("Auth: Adding new record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+") ID:'"+msg.author.id+"'.");
-												sendMessage(msg.channel.id, responces.AuthMessage );
+												sendMessage(msg.channel.id, responses.AuthMessage );
 											});
 										
 										
@@ -744,7 +751,7 @@ bot.on('message', msg => {
 						}
 						else
 						{
-							sendMessage(msg.channel.id, responces.AuthCodeNotFound );
+							sendMessage(msg.channel.id, responses.AuthCodeNotFound );
 							//break;
 							AllGood = false;
 						}
@@ -778,7 +785,7 @@ bot.on('message', msg => {
 					
 				}
 				else
-					sendMessage(msg.channel.id, responces.UnknownArgument );	
+					sendMessage(msg.channel.id, responses.UnknownArgument );	
 				
 				break;
 			}
@@ -837,12 +844,12 @@ bot.on('message', msg => {
 					}
 					else
 					{
-						sendMessage(msg.channel.id, responces.RandomQuoteWrong );
+						sendMessage(msg.channel.id, responses.RandomQuoteWrong );
 					}
 				}
 				else
 				{
-					sendMessage(msg.channel.id, responces.CommandNotAllowedHere );
+					sendMessage(msg.channel.id, responses.CommandNotAllowedHere );
 				}
 				
 				
@@ -851,7 +858,7 @@ bot.on('message', msg => {
             break;
             default:
 			{
-				sendMessage(msg.channel.id, responces.UnknownCommandMsg );
+				sendMessage(msg.channel.id, responses.UnknownCommandMsg );
 			}
         }
 		//Delete command if it is not in robot_spam channel and not a private message

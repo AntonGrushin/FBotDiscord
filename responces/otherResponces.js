@@ -9,11 +9,11 @@ module.exports = {
 	NotifyMeCancel : "(temp)Notification OFF",
 	AuthMessage : "You have been authorized, thank you! Your roles will be updated within one minute.",
 	AuthMessageChanged : "Your authorization has been updated, thank you!",
-	//HelpMessage : "Greetings!\n\nOur bot handles following commands:\n```fix\nAUTHORIZATION\n```\n__You can link your Warcraft account to your Discord. If you do so, you will be given ‘registered’ rank along with other that you deserve:__\n*Champions – if you are in top 10,*\n*Veteran – if you ever was in top 10,*\n*Top50 – if you are in top 50.*\nThis will track all the changes as well.\n\nIf you want this, you need to authorize your account:\n1.    Join Warcraft lobby channel of FBot (you can check current games here: http://bot.vofpro.com/ ) under account that you want to link.\n2.    Type this command in game to get authorization code: \n```!getcode```\nYou will see private message with the code that you need to remember.\n3.    Type retrieved code in #robot_spam channel. (You can do it in any other channel too, but your message will be deleted shortly after):\n```!auth your_code```\nExample:\n```!auth 76Gty```\n(This code is single-use, so don’t worry that someone will see it – he won’t be able to use it after you)", //Will be sent in private
 	RandomQuoteWrong : "You need to supply name and server (both can be partial). Example: !quote someone@useast",
 	CommandNotAllowedHere : "This command is not allowed here",
-
-	
+	RepeatedSuggestion : "<@%USERID%>, This channel is made for suggestions only, you can write here only once per %TIMEOUTHOURS% hours.\nIf you wanted to add something to your suggestion, please, edit your previous message and add it there.\nIf you want to discuss someone’s suggestion, use <#381052237306265601> channel.\nYour last message will be deleted in %DELETEWAITTIME% seconds, quickly, copy it before it disappears! :worried:",
+	RoleGiven : "<@%USERID%>, you have been given '%ROLENAME%' role!",
+	RoleRemoved : "<@%USERID%>, '%ROLENAME%' role was removed from you!",
 	//HelpMessage is in helpResponce.txt file
 
 }

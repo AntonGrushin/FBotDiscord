@@ -2,10 +2,10 @@ const Discord = require('discord.js');
 const bot = new Discord.Client();
 var logger = require('winston');
 //var emoji = require('node-emoji')
-var emoji = require('./node-emoji_copy/index.js')
 var fs = require('fs');
+var emoji = require('./node-emoji_copy/index.js')
 
-var ThisIsTestBot = true;
+var ThisIsTestBot = false;
 
 if(ThisIsTestBot)
 	var config = require('./configTest');
@@ -20,6 +20,7 @@ var knex = require('knex')(config.db);
 var LastMessageId = 0;
 var GotLastId = false;
 var LastGameStartedReported = 0;
+var LastGameIdRead = 0;
 var LastGameStatus = 0;
 var LastGameFisnishedReported = 0;
 var LobbyReady = false;
@@ -30,9 +31,7 @@ var LastTimeGameLoadingReported = 0;
 var UsersIDs = []; 		//IDs of users that wrote in 'sugestions' channel
 var UsersTimes = [];	//When that happend (above)
 
-var Players = [ ];
-var Actions = []; //Queue of message to delete/edit/reaction_add
-var ActionsWaitTime = 1500; //Time to wait between actions (milliseconds)
+var Players = [];
 var BotReady = false; //This turns true when we are connected
 
 //Messages to reply
@@ -40,7 +39,6 @@ var BotReady = false; //This turns true when we are connected
 var responces = require('./responces/otherResponces.js');
 var HelpMessage = "";
 fs.readFile('./responces/helpResponce.txt', 'utf8', function(err, data) { HelpMessage = data; });
-//setTimeout(function(){ console.log(HelpMessage); }, 500);
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -49,6 +47,7 @@ logger.add(logger.transports.Console, {
 });
 logger.add(logger.transports.File, { filename: "running.log" });
 //logger.level = 'debug';
+
 // Turn on debugs on default logger console transport
 logger.default.transports.console.level='debug';
 // Turn on debugs on default logger file transport
@@ -62,18 +61,13 @@ bot.on('ready', () => {
 });
 
 // Send Message to the bot Procedure
-function sendMessage( channel, message )
+function sendMessage( channel, message, debud_num=0 )
 {
-	//bot.channels.get(config.channels.ingamelobbychannel).sendMessage("Test string");
+	//console.log(debud_num+": "+channel+" : "+message)
 	if(BotReady && message.length > 0)
 		bot.channels.get(channel).send(message);
 }
 
-// Delete the message Procedure
-function deleteMessage( channel, messageID )
-{
-	
-}
 
 // Log connection errors
 bot.on('error', function(message) {
@@ -83,8 +77,6 @@ bot.on('error', function(message) {
 // Login
 bot.login(config.token);
 
-
-//=====
 
 //Read Chatlog Messages
 function print_messages( callback ) {
@@ -107,13 +99,11 @@ function print_messages( callback ) {
 		 //reverse array
 		 a.reverse();
 		 a.forEach(function(row){
-					//console.log(row);
+					//accumulate message string
 					if(n != 0 )
 						messageHere += "\n";
 					messageHere += "**"+row["name"]+":** "+row["message"];
 					LastMessageId = row["id"];
-					//logger.info(messageHere);
-					//logger.info(row);
 					
 					//count messages of this player
 					var plId = findPlayerInPlayers(Players, row["name"], row["server"]);
@@ -122,18 +112,15 @@ function print_messages( callback ) {
 					n++;
 		});
 		 
-		 if(GotLastId)
-			//sendMessage({ to: dbInfo.ingamelobbychannel, message: messageHere });
+		 //If we have a message to send, do it
+		 if( GotLastId && n>0 )
 			sendMessage(config.channels.ingamelobbychannel, messageHere);
-		 else if(LastMessageId > 0)
+		 if( !GotLastId )
 		 {
 			GotLastId = true;
 			logger.info('LastId is set to: '+LastMessageId);
 		 }
 	  });
-	
-	//logger.info('Check!');
-			
 }
 
 //find player function in PlayerList
@@ -146,9 +133,7 @@ function findPlayer(serachInThisArray, name, server)
 			return true;
 			break;
 		}
-		//console.log(serachInThisArray[z][1]+" == "+name+" AND "+serachInThisArray[z][6]+" == "+server);
 	}
-	
 	return false;
 }
 
@@ -180,7 +165,6 @@ function reportGameStart(playerListArray)
 				playerlistStrng += playerListArray[i][1]+", ";
 			}
 			playerlistStrng = playerlistStrng.slice(0, playerlistStrng.length-2); //remove ', ' in the end
-			//sendMessage({ to: dbInfo.ingamelobbychannel, message: '__<FBot> Game started with '+(playerListArray.length)+' players: '+playerlistStrng+'.__' });
 			sendMessage(config.channels.ingamelobbychannel, '__<FBot> Game started with '+(playerListArray.length)+' players: '+playerlistStrng+'.__' );
 		}
 		LastTimeGameLoadingReported = Date.now();
@@ -206,6 +190,23 @@ function serverShort( server )
 		return '';
 }
 
+function addRemoveRole( guildMember, role, toAdd=true )
+{
+	var ThisRole = bot.guilds.get(config.guildId).roles.get(role);
+	//Add the role
+	if(toAdd)
+	{
+		guildMember.addRole(role);
+		sendMessage(config.channels.robotSpamChannel, responces.RoleGiven.replace('%USERID%', guildMember.id).replace('%ROLENAME%', ThisRole.name) );
+	}
+	//Remove the role
+	else
+	{
+		guildMember.removeRole(role);
+		sendMessage(config.channels.robotSpamChannel, responces.RoleRemoved.replace('%USERID%', guildMember.id).replace('%ROLENAME%', ThisRole.name) );
+	}
+}
+
 //Check wwt_current_games
 function check_current_lobby_game( callback ) {
 
@@ -217,11 +218,6 @@ function check_current_lobby_game( callback ) {
 		.limit(1)
 	  .then(function (result) { 
 			//result[0] = {id: 0, status:0, etc}
-			//LastGameStartedReported = 0;
-			//LastGameStatus = 0
-			//StatusChangeSent = false;
-			
-			//console.log(result);
 			if(result.length > 0)
 			{
 				
@@ -243,15 +239,12 @@ function check_current_lobby_game( callback ) {
 					//Report new players in the list (Joining)
 					for(i=0; i<PlayersList.length; i++)
 					{
-						if(! findPlayer(PreviousPlayersList, PlayersList[i][1], PlayersList[i][6]) )
+						if(! findPlayer(PreviousPlayersList, PlayersList[i][1], PlayersList[i][6]) && LastGameStartedReported != 0)
 						{
 							if(PlayersList[i][19]>0)	//Player '+PlayersList[i][1]+'@'+PlayersList[i][6]+' joined
-								//sendMessage({ to: dbInfo.ingamelobbychannel, message: '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! Games: '+PlayersList[i][19]+', ww: '+PlayersList[i][23]+'/'+PlayersList[i][21]+', vill: '+PlayersList[i][22]+'/'+PlayersList[i][20]+'. Elo: '+Math.round(PlayersList[i][26])+', Rank: '+PlayersList[i][24]+'.`' });
 								sendMessage(config.channels.ingamelobbychannel, '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! Games: '+PlayersList[i][19]+', ww: '+PlayersList[i][23]+'/'+PlayersList[i][21]+', vill: '+PlayersList[i][22]+'/'+PlayersList[i][20]+'. Elo: '+Math.round(PlayersList[i][26])+', Rank: '+PlayersList[i][24]+'.`');
 							else
-								//sendMessage({ to: dbInfo.ingamelobbychannel, message: '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! No games played yet.`' });
 								sendMessage(config.channels.ingamelobbychannel, '`<FBot> '+PlayersList[i][1]+'@'+serverShort(PlayersList[i][6])+' joined! No games played yet.`');
-							//console.log('<FBot> Player joined: '+PlayersList[i][1]+'@'+PlayersList[i][6]+'. Played '+PlayersList[i][19]+' games ('+Math.round(PlayersList[i][15]/3600)+' hours).');
 							
 							//report to wc3_log channel
 							if(config.ReportIPs)
@@ -298,14 +291,15 @@ function check_current_lobby_game( callback ) {
 					//Report missing players (Leaving)
 					for(i=0; i<PreviousPlayersList.length; i++)
 					{
-						if(! findPlayer(PlayersList, PreviousPlayersList[i][1], PreviousPlayersList[i][6]) )
+						if(! findPlayer(PlayersList, PreviousPlayersList[i][1], PreviousPlayersList[i][6]) && LastGameIdRead == result[0]['id'])
 						{
 							var plId = findPlayerInPlayers(Players, PreviousPlayersList[i][1], PreviousPlayersList[i][6]);
 							//If we have StopSpam option enabled, we delete 'join' messages of players who write less than 'MessagesCountRequired' messages, else show leave message
 							if(config.StopReportSpamEnable && Players[plId][13] < config.MessagesCountRequired)
 							{
 								//Delete Join Message
-								Players[plId][14].delete();
+								if(Players[plId][14] != null)
+									Players[plId][14].delete();
 							}
 							else
 								if(Date.now() - LastTimeGameLoadingReported >= config.ReportedSafeTime*1000)
@@ -316,6 +310,7 @@ function check_current_lobby_game( callback ) {
 								Players.splice(plId, 1)
 						}
 					}
+					LastGameIdRead = result[0]['id'];
 				}
 				
 				//First read when program just started
@@ -332,6 +327,7 @@ function check_current_lobby_game( callback ) {
 				else if( LastGameStartedReported !=0 && LastGameStartedReported != result[0]['id'] && result[0]['id']>0 )
 				{
 					LastGameStartedReported = result[0]['id'];
+					
 					LastGameStatus = result[0]['status'];
 					//logger.info('New wwt_current_games ID: '+LastGameStartedReported+', Status: '+LastGameStatus);
 					//sendMessage({ to: dbInfo.ingamelobbychannel, message: '<FBot> New Lobby was created.' });
@@ -365,102 +361,114 @@ function check_current_lobby_game( callback ) {
 }
 
 //Update Roles
-/*function roleUpdate( callback )
+function roleUpdate( callback )
 {
-
-	//knex('discord_view').select('discord_userid', 'rank', 'rank_historyMax')
-	knex('discord_view').select(knex.raw('CAST(discord_userid AS CHAR) AS discord_userid'), 'rank', 'rank_historyMax')
-	.then(function (resultView) { 
-		if(resultView.length > 0)
-		{
-			//console.log(resultView);
-			//console.log(bot.users);
-			//console.log(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members);
-			
-			for(z=0; z<resultView.length; z++)
+	if(BotReady)
+	{
+		
+		//knex('discord_view').select('discord_userid', 'rank', 'rank_historyMax')
+		knex('discord_view').select(knex.raw('CAST(discord_userid AS CHAR) AS discord_userid'), 'rank', 'rank_historyMax')
+		.then(function (resultView) { 
+			if(resultView.length > 0)
 			{
-				//console.log(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']]);
-				//Find corresponding Discord userAgent
-				if(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']])
+				//console.log(resultView);
+				//console.log(bot.guilds.first().members.get(resultView[z]['discord_userid']).roles);
+				
+				for(z=0; z<resultView.length; z++)
 				{
-					//console.log("User: '"+resultView[z]['discord_userid']+"', Rank: "+resultView[z]['rank']+".");
-					var IsTop10 = false;
-					var IsTop50 = false;
-					var IsVeteran = false;
-					var IsRegistered = false;
-					//console.log(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles);
-					for(i=0;i<bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles.length;i++)
+					//if(bot.guilds.first().members.find('id', resultView[z]['discord_userid']))
+					//	console.log(bot.guilds.first().members.find('id', resultView[z]['discord_userid']).nickname);
+					var guildMember = bot.guilds.get(config.guildId).members.find('id', resultView[z]['discord_userid']);
+
+					
+					//If this user is member of current guild
+					if(guildMember)
 					{
-						if(dbInfo.role.top10 == bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles[i])
+						var IsTop10 = false;
+						var IsTop50 = false;
+						var IsVeteran = false;
+						var IsRegistered = false;
+						
+						var WillHaveTop10 = false;
+						var WillHaveTop50 = false;
+						var WillHaveVeteran = false;
+						var WillHaveRegistered = false;
+						
+						// Find out what roles this guild member has
+						if(guildMember.roles.get( config.roles.top10 ))
 							IsTop10 = true;
-						else if(dbInfo.role.top50 == bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles[i])
+						if(guildMember.roles.get( config.roles.top50 ))
 							IsTop50 = true;
-						else if(dbInfo.role.veteran == bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles[i])
+						if(guildMember.roles.get( config.roles.veteran ))
 							IsVeteran = true;
-						else if(dbInfo.role.registered == bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles[i])
+						if(guildMember.roles.get( config.roles.registered ))
 							IsRegistered = true;
-						//console.log(dbInfo.role.registered);
-						//console.log(bot.servers[bot.channels[dbInfo.generalchannel].guild_id].members[resultView[z]['discord_userid']].roles[i]);
+						
+						// Find out what roles should be given
+						//top10
+						if(resultView[z]['rank']<=10 && resultView[z]['rank']>0)
+							WillHaveTop10 = true;
+						//veteran
+						if(resultView[z]['rank_historyMax']<=10 && resultView[z]['rank_historyMax']>0)
+							WillHaveVeteran = true;
+						//top50
+						if(resultView[z]['rank']<=50 && resultView[z]['rank']>0 )
+							WillHaveTop50 = true;
+						if(!IsRegistered)
+							WillHaveRegistered = true;
+						
+						// == Give & Remove roles ==
+						//registered
+						if(WillHaveRegistered && !IsRegistered)
+						{
+							addRemoveRole( guildMember, config.roles.registered )
+						}
+						//top10
+						if(!IsTop10 && WillHaveTop10)
+						{
+							addRemoveRole( guildMember, config.roles.top10 )
+							
+							//Remove other roles
+							if(IsTop50)
+								addRemoveRole( guildMember, config.roles.top50, false )
+							if(IsVeteran)
+								addRemoveRole( guildMember, config.roles.veteran, false )
+							
+							WillHaveTop50 = false;
+							WillHaveVeteran = false;
+						}
+						//veteran
+						if(WillHaveVeteran && !IsVeteran)
+						{
+							addRemoveRole( guildMember, config.roles.veteran )
+							
+							//Remove other roles
+							if(IsTop50)
+								addRemoveRole( guildMember, config.roles.top50, false )
+							if(IsTop10)
+								addRemoveRole( guildMember, config.roles.top10, false )
+							WillHaveTop50 = false;
+						}
+						//top50
+						if(WillHaveTop50 && !IsTop50)
+						{
+							addRemoveRole( guildMember, config.roles.top50 )
+							
+							//Remove other roles
+							if(IsTop50)
+								addRemoveRole( guildMember, config.roles.top50, false )
+							if(IsTop10)
+								addRemoveRole( guildMember, config.roles.top10, false )
+						}
 					}
-					
-					//console.log(resultView[z]['discord_userid']+": Top10: '"+(IsTop10?"YES":"NO")+"', Top50: '"+(IsTop50?"YES":"NO")+"', Veteran: '"+(IsVeteran?"YES":"NO")+"', Registered: '"+(IsRegistered?"YES":"NO")+"'.");
-					
-					//Give Top10
-					if(resultView[z]['rank']<=10 && resultView[z]['rank']>0 && !IsTop10)
-					{
-						bot.addToRole({ roleID: dbInfo.role.top10, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, you have been given 'Champions' role!" });
-					}
-					//Give Top50
-					if(resultView[z]['rank']<=50 && resultView[z]['rank']>0 && !IsTop50 && !IsTop10 && !IsVeteran && !resultView[z]['rank']<=10 && !resultView[z]['rank_historyMax']<=10)
-					{
-						bot.addToRole({ roleID: dbInfo.role.top50, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, you have been given 'Top50' role!" });
-					}
-					//Give Veteran
-					if(resultView[z]['rank_historyMax']<=10 && resultView[z]['rank_historyMax']>0 && !IsVeteran && !IsTop10 && !resultView[z]['rank']<=10)
-					{
-						bot.addToRole({ roleID: dbInfo.role.veteran, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, you have been given 'Veteran' role!" });
-					}
-					//Give Registered
-					if(!IsRegistered)
-					{
-						bot.addToRole({ roleID: dbInfo.role.registered, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, you have been given 'Registered' role!" });
-					}
-					
-					//Remove Top10
-					if(resultView[z]['rank'] > 10 && IsTop10)
-					{
-						bot.removeFromRole({ roleID: dbInfo.role.top10, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, 'Champions' role was removed from you!" });
-					}
-					//Remove Top50
-					if((resultView[z]['rank']>50 && IsTop50) || (IsTop50 && IsTop10) || (IsTop50 && IsVeteran))
-					{
-						bot.removeFromRole({ roleID: dbInfo.role.top50, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, 'Top50' role was removed from you!" });
-					}
-					//Remove Veteran if player has higher rank
-					//if(resultView[z]['rank_historyMax']>10 && IsVeteran)
-					if(IsVeteran && IsTop10)
-					{
-						bot.removeFromRole({ roleID: dbInfo.role.veteran, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-						sendMessage({ to: dbInfo.robotSpamChannel, message: "<@"+resultView[z]['discord_userid']+">, 'Veteran' role was removed from you!" });
-					}
-					//Remove Registered
-					//else if(IsRegistered)
-					//	bot.removeFromRole({ roleID: dbInfo.role.registered, userID: resultView[z]['discord_userid'], serverID: bot.channels[dbInfo.generalchannel].guild_id });
-					
 				}
 			}
-		}
-	});
+		});
+	}
 	setTimeout(roleUpdate, (config.RolesUpdateTimeSec * 1000));
 
 }
-*/
+
 
 //Main program loop
 function loopHere( callback ) {
@@ -476,6 +484,7 @@ function loopHere( callback ) {
 
 //Run the main Loop
 loopHere( );
+roleUpdate();
 
 
 //Handle Commands
@@ -500,6 +509,9 @@ bot.on('message', msg => {
 		{
 			var msgToSend = "";
 			var userName = msg.author.username;
+			//Change name if user has nickname on this guild
+			if(bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname != null)
+				userName = bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname
 			
 			
 			if(msg.content.length > config.RowCharactersLimit)
@@ -528,8 +540,6 @@ bot.on('message', msg => {
 	//'suggestions' channel message checking and adding Vote emoji's
 	if(msg.channel.id == config.channels.suggestionschannel && msg.author.id != config.channels.botSelfUserID)
 	{
-		//var UsersIDs = []; 		//IDs of users that wrote in 'sugestions' channel
-		//var UsersTimes = [];	//When that happend (above)
 		var passed = true;
 		var addUser = false;
 		if(UsersIDs.length > 0)
@@ -574,7 +584,7 @@ bot.on('message', msg => {
 			logger.info('RepeatedMessage in <Suggestions> by user '+msg.author.username+', Date: '+Date.now()+', Message: ');
 			logger.info(msg.content);
 			
-			sendMessage(config.channels.suggestionschannel, '<@'+msg.author.id+'>, This channel is made for suggestions only, you can write here only once per '+config.SuggestionsTimeoutHours+' hours.\nIf you wanted to add something to your suggestion, please, edit your previous message and add it there.\nIf you want to discuss someone’s suggestion, use <#381052237306265601> channel.\nYour last message will be deleted in '+config.SuggestionsDeleteWaitTime+' seconds, quickly, copy it before it disappears! :worried:' );
+			sendMessage(config.channels.suggestionschannel, responces.RepeatedSuggestion.replace('%USERID%', msg.author.id).replace('%TIMEOUTHOURS%', config.SuggestionsTimeoutHours).replace('%DELETEWAITTIME%', config.SuggestionsDeleteWaitTime) );
 			msg.delete( config.SuggestionsDeleteWaitTime*1000 );
 		}
 	}
@@ -583,7 +593,7 @@ bot.on('message', msg => {
 	if(msg.channel.id == config.channels.suggestionschannel && msg.author.id == config.channels.botSelfUserID)
 		msg.delete( config.SuggestionsDeleteWaitTime*1000 );
 	
-	//Chat the Log in log file
+	//Write the chat in log file
 	if(config.EnableChatLog)
 	{
 		var channelName = "";
@@ -631,8 +641,8 @@ bot.on('message', msg => {
 			}
 		}
 	}
-	//Delete error reply
-	if( ( msg.content == responces.UnknownCommandMsg || msg.content == responces.HelpNotify || msg.content == responces.UnknownArgument || msg.content == responces.UnknownAuthCode || msg.content == responces.AuthMessage || msg.content == responces.AuthMessageChanged || msg.content == responces.RandomQuoteWrong || msg.content == responces.CommandNotAllowedHere) && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID )
+	//Delete bot reply
+	if( ( msg.content == responces.UnknownCommandMsg || msg.content == responces.HelpNotify || msg.content == responces.UnknownArgument || msg.content == responces.UnknownAuthCode || msg.content == responces.AuthMessage || msg.content == responces.AuthMessageChanged || msg.content == responces.RandomQuoteWrong || msg.content == responces.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID )
 	{
 		msg.delete( config.InfMsgDisplayTimeSec*1000 );
 	}
@@ -652,8 +662,9 @@ bot.on('message', msg => {
 			case 'help':
 			{
                 //Send in private chat
-				sendMessage(msg.author.id, responces.HelpMessage);
-				sendMessage(msg.channel.id, responces.HelpNotify);
+				msg.author.send(HelpMessage)
+				if(msg.channel.type != "dm")
+					msg.reply(responces.HelpNotify);
 				break;
 			}
 			case 'auth':
@@ -717,11 +728,11 @@ bot.on('message', msg => {
 										
 										
 									}
-									//Reset password back to default
+									//Reset password back to default and set registration flag in 'gametrack' table
 									knex('gametrack')
 										.where('id', '=', result[0]['id'])
 										.update({
-										  password: "uE6dZ"
+										  password: "uE6dZ", discordRegistered: "1"
 										})
 										.then(function(a) {
 											//logger.info("Auth: Updating discord record for user wc3: '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+").");
@@ -843,8 +854,8 @@ bot.on('message', msg => {
 				sendMessage(msg.channel.id, responces.UnknownCommandMsg );
 			}
         }
-		//Delete command if it is not in robot_spam channel
-		if(msg.channel.id != config.channels.robotSpamChannel)
+		//Delete command if it is not in robot_spam channel and not a private message
+		if(msg.channel.id != config.channels.robotSpamChannel && msg.channel.type != "dm")
 			msg.delete( config.CommandsDeleteTimeSec*1000 )
     }
 })

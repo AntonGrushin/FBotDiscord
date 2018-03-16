@@ -1,18 +1,21 @@
 module.exports = {
 	
 	//TOKEN
-	token : "SECRET_TOKEN_HERE",
+	token : "SECRET_TOKE_HERE",
+	guildId : "GUILD_ID_HERE",
 
+	//DATABASE
 	db : {
 			client : 'mysql',
 			connection : { 
 				host : 'localhost',
 				user : 'root',
-				password : 'mysqlpassword',
+				password : 'MYSQL_PASSWORD',
 				database : 'ghost',
 			},
 	},
 
+	//ROLES
 	roles : {
 		top10 : "342169289270493186",
 		top50 : "407854909808181259",
@@ -20,6 +23,7 @@ module.exports = {
 		registered : "408301793005797386",
 	},
 			
+	//CHANNELS
 	channels : {
 		ingamelobbychannel : "368475932228583425",
 		suggestionschannel : "381052000592461824",

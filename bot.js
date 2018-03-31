@@ -40,7 +40,7 @@ var BotReady = false; //This turns true when we are connected
 //Read responses from files
 var responses = require('./responses/otherResponses.js');
 var HelpMessage = "";
-fs.readFile('./responses/helpResponce.txt', 'utf8', function(err, data) { HelpMessage = data; });
+fs.readFile('./responses/helpResponse.txt', 'utf8', function(err, data) { HelpMessage = data; });
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -517,8 +517,9 @@ bot.on('message', msg => {
 			var msgToSend = "";
 			var userName = msg.author.username;
 			//Change name if user has nickname on this guild
-			if(bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname != null)
-				userName = bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname
+			if(bot.guilds.get(msg.guild.id).members.find('id', msg.author.id) != null)
+				if(bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname != null)
+					userName = bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname
 			
 			
 			if(msg.content.length > config.RowCharactersLimit)
@@ -794,9 +795,13 @@ bot.on('message', msg => {
 			{
 				if(msg.channel.id != config.channels.ingamelobbychannel)
 				{
-					var requestString = args[0].split('@');
-					var who = requestString[0];
-					var whereThis = requestString[1];
+					var requestString;
+					if(args[0] != null)
+					{
+						requestString = args[0].split('@');
+						var who = requestString[0];
+						var whereThis = requestString[1];
+					}
 					
 					//SELECT * FROM `chatlog` WHERE name="kidseatfree" AND server="useast.battle.net" AND CHAR_LENGTH(message)>30 ORDER BY RAND() LIMIT 1 
 					if(who && whereThis)

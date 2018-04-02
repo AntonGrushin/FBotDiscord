@@ -495,67 +495,61 @@ roleUpdate();
 
 
 //Handle Commands
-bot.on('message', msg => {	
-	
+bot.on('message', msg => {
+
 	//user		msg.author.username
 	//userID 		msg.author.id
 	//channelID	msg.channel.id
 	//messageid	msg.id
-	
-	
-	
-	
-    // Our bot needs to know if it needs to execute a command
-    // for this script it will listen for messages that will start with `!`
-    
+
+
+
+
+	// Our bot needs to know if it needs to execute a command
+	// for this script it will listen for messages that will start with `!`
+
 	//Message is in lobby-chat-channel and its not bot himself
-	if(msg.channel.id == config.channels.ingamelobbychannel && msg.author.id != config.channels.botSelfUserID )
-	{
+	if (msg.channel.id == config.channels.ingamelobbychannel && msg.author.id != config.channels.botSelfUserID) {
 		//console.log(message);
-		if(LobbyReady)
-		{
+		if (LobbyReady) {
 			var msgToSend = "";
 			var userName = msg.author.username;
 			//Change name if user has nickname on this guild
-			if(bot.guilds.get(msg.guild.id).members.find('id', msg.author.id) != null)
-				if(bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname != null)
+			if (bot.guilds.get(msg.guild.id).members.find('id', msg.author.id) != null)
+				if (bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname != null)
 					userName = bot.guilds.get(msg.guild.id).members.find('id', msg.author.id).nickname
-			
-			
-			if(msg.content.length > config.RowCharactersLimit)
-			{
+
+
+			if (msg.content.length > config.RowCharactersLimit) {
 				msgToSend = msg.content.substring(0, config.RowCharactersLimit);
-				sendMessage(config.channels.ingamelobbychannel, '<FBot> Your message was too long and got cutted!' );
+				sendMessage(config.channels.ingamelobbychannel, '<FBot> Your message was too long and got cutted!');
 			}
 			else
 				msgToSend = msg.content;
-			if(ThisIsTestBot)
-				logger.info(msg.author.username+': '+msgToSend);
+			if (ThisIsTestBot)
+				logger.info(msg.author.username + ': ' + msgToSend);
 			msgToSend = emoji.unemojify(msgToSend);
-			if(ThisIsTestBot)
-				logger.info(msg.author.username+': (emojiReplace): '+msgToSend);
+			if (ThisIsTestBot)
+				logger.info(msg.author.username + ': (emojiReplace): ' + msgToSend);
 			msgToSend = msgToSend.replace(/[^a-zA-Zа-яА-Я :!$?\(\)\-\+\\\/\[\]0-9*\^\%\@~\"\'<>;:.,=_]/g, "");
-			knex('chatlog').insert({gameid: LastGameStartedReported, gamestatus: '0', gameFinished: '0', name: msg.author.username, message: userName+': '+msgToSend, target: 'DISCORD'}).into('chatlog').then(function (a) {  });
-			
+			knex('chatlog').insert({ gameid: LastGameStartedReported, gamestatus: '0', gameFinished: '0', name: msg.author.username, message: userName + ': ' + msgToSend, target: 'DISCORD' }).into('chatlog').then(function (a) { });
+
 			//console.log(qry.toString());
 		}
 		else
-			sendMessage(config.channels.ingamelobbychannel, '<FBot> Lobby is not created yet, there is noone to talk to here. Wait few seconds please.' );
-		
+			sendMessage(config.channels.ingamelobbychannel, '<FBot> Lobby is not created yet, there is noone to talk to here. Wait few seconds please.');
+
 		//knex('chatlog').insert({title: 'Slaughterhouse Five'})
 	}
-	
+
 	//'suggestions' channel message checking and adding Vote emoji's
-	if(msg.channel.id == config.channels.suggestionschannel && msg.author.id != config.channels.botSelfUserID)
-	{
+	if (msg.channel.id == config.channels.suggestionschannel && msg.author.id != config.channels.botSelfUserID) {
 		var passed = true;
 		var addUser = false;
-		if(UsersIDs.length > 0)
-		{
+		if (UsersIDs.length > 0) {
 			var arrayID = UsersIDs.indexOf(msg.author.id);
-			if(arrayID > -1)
-			{
-				if(Date.now() - UsersTimes[arrayID] <= config.SuggestionsTimeoutHours*3600000)
+			if (arrayID > -1) {
+				if (Date.now() - UsersTimes[arrayID] <= config.SuggestionsTimeoutHours * 3600000)
 					passed = false;
 				else
 					UsersTimes[arrayID] = Date.now();
@@ -565,309 +559,307 @@ bot.on('message', msg => {
 		}
 		else
 			addUser = true;
-		
-		if(addUser)
-		{
+
+		if (addUser) {
 			//Add user to the array
 			UsersIDs.push(msg.author.id);
 			UsersTimes.push(Date.now());
 		}
-		
-		if(passed)
-		{
+
+		if (passed) {
 			//Add ThumbsUp/Down to every message in 'suggestions' channel
-			if(ThisIsTestBot)
-			{
+			if (ThisIsTestBot) {
 				msg.react("👍");
 				msg.react("👎");
 			}
-			else
-			{
+			else {
 				msg.react(msg.guild.emojis.get('408769454344896513'));
 				msg.react(msg.guild.emojis.get('408769454315536384'));
 			}
 		}
-		else
-		{
-			logger.info('RepeatedMessage in <Suggestions> by user '+msg.author.username+', Date: '+Date.now()+', Message: ');
+		else {
+			logger.info('RepeatedMessage in <Suggestions> by user ' + msg.author.username + ', Date: ' + Date.now() + ', Message: ');
 			logger.info(msg.content);
-			
-			sendMessage(config.channels.suggestionschannel, responses.RepeatedSuggestion.replace('%USERID%', msg.author.id).replace('%TIMEOUTHOURS%', config.SuggestionsTimeoutHours).replace('%DELETEWAITTIME%', config.SuggestionsDeleteWaitTime) );
-			msg.delete( config.SuggestionsDeleteWaitTime*1000 );
+
+			sendMessage(config.channels.suggestionschannel, responses.RepeatedSuggestion.replace('%USERID%', msg.author.id).replace('%TIMEOUTHOURS%', config.SuggestionsTimeoutHours).replace('%DELETEWAITTIME%', config.SuggestionsDeleteWaitTime));
+			msg.delete(config.SuggestionsDeleteWaitTime * 1000);
 		}
 	}
-	
+
 	//Delete own Bot's Warning messages after timeout
-	if(msg.channel.id == config.channels.suggestionschannel && msg.author.id == config.channels.botSelfUserID)
-		msg.delete( config.SuggestionsDeleteWaitTime*1000 );
-	
+	if (msg.channel.id == config.channels.suggestionschannel && msg.author.id == config.channels.botSelfUserID)
+		msg.delete(config.SuggestionsDeleteWaitTime * 1000);
+
 	//Write the chat in log file
-	if(config.EnableChatLog)
-	{
+	if (config.EnableChatLog) {
 		var channelName = "";
-		if(msg.channel.id == config.channels.ingamelobbychannel)
+		if (msg.channel.id == config.channels.ingamelobbychannel)
 			channelName = config.LobbyChannelBaseName;
 		else
-			if(bot.channels[msg.channel.id])
+			if (bot.channels[msg.channel.id])
 				channelName = bot.channels[msg.channel.id].name;
 			else
 				channelName = "Private";
-		
-		var writeThis = msg.createdTimestamp+" "+msg.author.username+" (ID:"+msg.author.id+"): "+msg.content+"\n"
-		
-		fs.appendFile(config.ChatLogRootFolder+channelName+".log", writeThis, function(err) {
-			if(err) {
-				logger.error("Error Writing Message log file: "+err);
+
+		var writeThis = msg.createdTimestamp + " " + msg.author.username + " (ID:" + msg.author.id + "): " + msg.content + "\n"
+
+		fs.appendFile(config.ChatLogRootFolder + channelName + ".log", writeThis, function (err) {
+			if (err) {
+				logger.error("Error Writing Message log file: " + err);
 			}
 		});
 	}
-	
+
 	//Capture Player Join messages in in-game_lobby channel
-	if(msg.channel.id == config.channels.ingamelobbychannel && msg.author.id == config.channels.botSelfUserID )
-	{
+	if (msg.channel.id == config.channels.ingamelobbychannel && msg.author.id == config.channels.botSelfUserID) {
 		var regex = /([\S]+)[@]([a-zA-Z.]+) joined!/i;
 		var found = msg.content.match(regex);
-		if(found)
-		{
+		if (found) {
 			var server = "";
-			if(found[2] == "useast")
+			if (found[2] == "useast")
 				server = "useast.battle.net";
-			else if(found[2] == "uswest")
+			else if (found[2] == "uswest")
 				server = "uswest.battle.net";
-			else if(found[2] == "europe")
+			else if (found[2] == "europe")
 				server = "europe.battle.net";
-			else if(found[2] == "asia")
+			else if (found[2] == "asia")
 				server = "asia.battle.net";
-			else if(found[2] == "eurobattle")
+			else if (found[2] == "eurobattle")
 				server = "server.eurobattle.net";
 			else
 				server = found[2];
 			var plId = findPlayerInPlayers(Players, found[1], server);
-			if(plId>=0)
-			{
+			if (plId >= 0) {
 				Players[plId][14] = msg;
 			}
 		}
 	}
 	//Delete bot reply
-	if( ( msg.content == responses.UnknownCommandMsg || msg.content == responses.HelpNotify || msg.content == responses.UnknownArgument || msg.content == responses.UnknownAuthCode || msg.content == responses.AuthMessage || msg.content == responses.AuthMessageChanged || msg.content == responses.RandomQuoteWrong || msg.content == responses.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID )
-	{
-		msg.delete( config.InfMsgDisplayTimeSec*1000 );
+	if ((msg.content == responses.UnknownCommandMsg || msg.content == responses.HelpNotify || msg.content == responses.UnknownArgument || msg.content == responses.UnknownAuthCode || msg.content == responses.AuthMessage || msg.content == responses.AuthMessageChanged || msg.content == responses.RandomQuoteWrong || msg.content == responses.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID) {
+		msg.delete(config.InfMsgDisplayTimeSec * 1000);
 	}
-		
-	
+
+
 	if (msg.content.substring(0, 1) == '!') {
-        var args = msg.content.substring(1).split(' ');
-        var cmd = args[0];
+		var args = msg.content.substring(1).split(' ');
+		var cmd = args[0];
 
-        args = args.splice(1);
+		args = args.splice(1);
 
-        switch(cmd) {
+		switch (cmd) {
 			// !help
-            case 'commands':
+			case 'commands':
 			case 'tip':
 			case 'tips':
 			case 'help':
-			{
-                //Send in private chat
-				msg.author.send(HelpMessage)
-				if(msg.channel.type != "dm")
-					msg.reply(responses.HelpNotify);
-				break;
-			}
+				{
+					//Send in private chat
+					msg.author.send(HelpMessage)
+					if (msg.channel.type != "dm")
+						msg.reply(responses.HelpNotify);
+					break;
+				}
+			case 'restart':
+			case 'reboot':
+				{
+					//Only for Dev Team and Moderators
+					let memberHere = bot.guilds.get(msg.guild.id).members.find('id', msg.author.id)
+					if (memberHere) {
+						if (memberHere.roles.find(config.roles.devTeam) || memberHere.roles.find(config.roles.moderators)) {
+							BotReady = false;
+							msg.reply("Bot is relogging (fake message)!");
+							//TODO: This is not finished
+							//bot.delete();
+							//bot.login(config.token);
+						}
+					}
+					break;
+				}
 			case 'auth':
 			case 'authme':
 			case 'authenticate':
 			case 'register':
 			case 'reg':
-			{
-			    var AllGood = true;
-				if(args == "uE6dZ" || !args)
 				{
-					sendMessage(msg.channel.id, responses.UnknownAuthCode );
-					AllGood = false;
-				}
-				else
-				{
-				  knex('gametrack')
-				  .select('id', 'name', 'realm')
-					.where('password', '=', args)
-				  .then(function (result) { 
-						
-						if(result.length == 1)
-						{
-							knex('discord').select('id')
-								.where('gametrack_id', '=', result[0]['id'])
-								.orWhere('discord_userid', '=', msg.author.id)
-							  .then(function (resultTwo) {
-									if(resultTwo.length > 0)
-									{
-										//There is already record in 'discord' table, update it!
-										knex('discord')
-										.where('id', '=', resultTwo[0]['id'])
-										.update({
-										  gametrack_id: result[0]['id'],
-										  wc3_name: result[0]['name'],
-										  wc3_server : result[0]['realm'],
-										  discord_userid: msg.author.id,
-										  discord_name: msg.author.username
-										})
-										.then(function(a) {
-											logger.info("Auth: Updating discord record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+") ID:'"+msg.author.id+"'.");
-											sendMessage(msg.channel.id, responses.AuthMessageChanged );
-										})
-										.catch(function(error) {
-											logger.error(error)
-										});
-									}
-									else
-									{
-										//Insert new record
-										knex('discord').insert({
-											  gametrack_id: result[0]['id'],
-											  wc3_name: result[0]['name'],
-											  wc3_server : result[0]['realm'],
-											  discord_userid: msg.author.id,
-											  discord_name: msg.author.username
-											}).into('discord').then(function (a) { 
-												logger.info("Auth: Adding new record for user '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+") ID:'"+msg.author.id+"'.");
-												sendMessage(msg.channel.id, responses.AuthMessage );
-											});
-										
-										
-									}
-									//Reset password back to default and set registration flag in 'gametrack' table
-									knex('gametrack')
-										.where('id', '=', result[0]['id'])
-										.update({
-										  password: "uE6dZ", discordRegistered: "1"
-										})
-										.then(function(a) {
-											//logger.info("Auth: Updating discord record for user wc3: '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+").");
-										})
-										.catch(function(error) {
-											logger.error(error)
-										});
-							});
-						}
-						else
-						{
-							sendMessage(msg.channel.id, responses.AuthCodeNotFound );
-							//break;
-							AllGood = false;
-						}
-						
-				  });
-				}
-				if(AllGood)
-				{
-					
-				}
+					var AllGood = true;
+					if (args == "uE6dZ" || !args) {
+						sendMessage(msg.channel.id, responses.UnknownAuthCode);
+						AllGood = false;
+					}
+					else {
+						knex('gametrack')
+							.select('id', 'name', 'realm')
+							.where('password', '=', args)
+							.then(function (result) {
 
-			  
-			  break;
-			}
+								if (result.length == 1) {
+									knex('discord').select('id')
+										.where('gametrack_id', '=', result[0]['id'])
+										.orWhere('discord_userid', '=', msg.author.id)
+										.then(function (resultTwo) {
+											if (resultTwo.length > 0) {
+												//There is already record in 'discord' table, update it!
+												knex('discord')
+													.where('id', '=', resultTwo[0]['id'])
+													.update({
+														gametrack_id: result[0]['id'],
+														wc3_name: result[0]['name'],
+														wc3_server: result[0]['realm'],
+														discord_userid: msg.author.id,
+														discord_name: msg.author.username
+													})
+													.then(function (a) {
+														logger.info("Auth: Updating discord record for user '" + result[0]['name'] + "@" + serverShort(result[0]['realm']) + "' (" + msg.author.username + ") ID:'" + msg.author.id + "'.");
+														sendMessage(msg.channel.id, responses.AuthMessageChanged);
+													})
+													.catch(function (error) {
+														logger.error(error)
+													});
+											}
+											else {
+												//Insert new record
+												knex('discord').insert({
+													gametrack_id: result[0]['id'],
+													wc3_name: result[0]['name'],
+													wc3_server: result[0]['realm'],
+													discord_userid: msg.author.id,
+													discord_name: msg.author.username
+												}).into('discord').then(function (a) {
+													logger.info("Auth: Adding new record for user '" + result[0]['name'] + "@" + serverShort(result[0]['realm']) + "' (" + msg.author.username + ") ID:'" + msg.author.id + "'.");
+													sendMessage(msg.channel.id, responses.AuthMessage);
+												});
+
+
+											}
+											//Reset password back to default and set registration flag in 'gametrack' table
+											knex('gametrack')
+												.where('id', '=', result[0]['id'])
+												.update({
+													password: "uE6dZ", discordRegistered: "1"
+												})
+												.then(function (a) {
+													//logger.info("Auth: Updating discord record for user wc3: '"+result[0]['name']+"@"+serverShort(result[0]['realm'])+"' ("+msg.author.username+").");
+												})
+												.catch(function (error) {
+													logger.error(error)
+												});
+										});
+								}
+								else {
+									sendMessage(msg.channel.id, responses.AuthCodeNotFound);
+									//break;
+									AllGood = false;
+								}
+
+							});
+					}
+					if (AllGood) {
+
+					}
+
+
+					break;
+				}
 			case 'notify':
 			case 'notifyme':
-			{
-                if(!args)
 				{
-					//TODO Notify this user when current lobby starts loading
-					
-				}
-				else if(args == "off" || args == 0)
-				{
-					//TODO disable notification for current user
-					
-				}
-				else if(args+1 > 0)
-				{
-					//TODO Notify user when there are 'args' amount of players in the lobby
-					
-				}
-				else
-					sendMessage(msg.channel.id, responses.UnknownArgument );	
-				
-				break;
-			}
-			case 'quote':
-			case 'q':
-			{
-				if(msg.channel.id != config.channels.ingamelobbychannel)
-				{
-					var requestString;
-					if(args[0] != null)
-					{
-						requestString = args[0].split('@');
-						var who = requestString[0];
-						var whereThis = requestString[1];
+					if (!args) {
+						//TODO Notify this user when current lobby starts loading
+
 					}
-					
-					//SELECT * FROM `chatlog` WHERE name="kidseatfree" AND server="useast.battle.net" AND CHAR_LENGTH(message)>30 ORDER BY RAND() LIMIT 1 
-					if(who && whereThis)
-					{
-						knex('chatlog')
-					  .select('message', 'name', 'server')
-						.where('name', 'like', "%"+who+"%")
-						.andWhere('server', 'like', "%"+whereThis+"%")
-						.andWhere(knex.raw('CHAR_LENGTH(message)'), '>', "30")
-						.orderBy(knex.raw('RAND()'), 'desc')
-						.limit(1)
-					  .then(function (result) { 
-							
-							if(result.length == 1)
-							{
-								sendMessage(msg.channel.id, result[0]['name']+"@"+serverShort(result[0]['server'])+" once said:\n```fix\n"+result[0]['message']+"\n```" );
-							}
-							else
-							{
-								sendMessage(msg.channel.id, "No quotes found :(" );
-								//break;
-								AllGood = false;
-							}
-							
-					  });
-						
-						
+					else if (args == "off" || args == 0) {
+						//TODO disable notification for current user
+
 					}
-					else if(requestString == "random" || requestString == "rand")
-					{
-						knex('chatlog')
-					  .select('message', 'name', 'server')
-						.where(knex.raw('CHAR_LENGTH(message)'), '>', "30")
-						.andWhere('server', '!=', "")
-						.orderBy(knex.raw('RAND()'), 'desc')
-						.limit(1)
-					  .then(function (result) { 
-							
-							if(result.length == 1)
-							{
-								sendMessage(msg.channel.id,result[0]['name']+"@"+serverShort(result[0]['server'])+" once said:\n```fix\n"+result[0]['message']+"\n```" );
-							}
-							
-					  });
+					else if (args + 1 > 0) {
+						//TODO Notify user when there are 'args' amount of players in the lobby
+
 					}
 					else
-					{
-						sendMessage(msg.channel.id, responses.RandomQuoteWrong );
-					}
+						sendMessage(msg.channel.id, responses.UnknownArgument);
+
+					break;
 				}
-				else
+			case 'quote':
+			case 'q':
 				{
-					sendMessage(msg.channel.id, responses.CommandNotAllowedHere );
+					if (msg.channel.id != config.channels.ingamelobbychannel) {
+						var requestString;
+						if (args[0] != null) {
+							requestString = args[0].split('@');
+							var who = requestString[0];
+							var whereThis = requestString[1];
+						}
+
+						//SELECT * FROM `chatlog` WHERE name="kidseatfree" AND server="useast.battle.net" AND CHAR_LENGTH(message)>30 ORDER BY RAND() LIMIT 1 
+						if (who && whereThis) {
+							knex('chatlog')
+								.select('message', 'name', 'server')
+								.where('name', 'like', "%" + who + "%")
+								.andWhere('server', 'like', "%" + whereThis + "%")
+								.andWhere(knex.raw('CHAR_LENGTH(message)'), '>', "30")
+								.orderBy(knex.raw('RAND()'), 'desc')
+								.limit(1)
+								.then(function (result) {
+
+									if (result.length == 1) {
+										sendMessage(msg.channel.id, result[0]['name'] + "@" + serverShort(result[0]['server']) + " once said:\n```fix\n" + result[0]['message'] + "\n```");
+									}
+									else {
+										sendMessage(msg.channel.id, "No quotes found :(");
+										//break;
+										AllGood = false;
+									}
+
+								});
+
+
+						}
+						else if (requestString == "random" || requestString == "rand") {
+							knex('chatlog')
+								.select('message', 'name', 'server')
+								.where(knex.raw('CHAR_LENGTH(message)'), '>', "30")
+								.andWhere('server', '!=', "")
+								.orderBy(knex.raw('RAND()'), 'desc')
+								.limit(1)
+								.then(function (result) {
+
+									if (result.length == 1) {
+										sendMessage(msg.channel.id, result[0]['name'] + "@" + serverShort(result[0]['server']) + " once said:\n```fix\n" + result[0]['message'] + "\n```");
+									}
+
+								});
+						}
+						else {
+							sendMessage(msg.channel.id, responses.RandomQuoteWrong);
+						}
+					}
+					else {
+						sendMessage(msg.channel.id, responses.CommandNotAllowedHere);
+					}
+
+
+					break;
 				}
-				
-				
 				break;
-			}
-            break;
-            default:
-			{
-				sendMessage(msg.channel.id, responses.UnknownCommandMsg );
-			}
-        }
+			default:
+				{
+					sendMessage(msg.channel.id, responses.UnknownCommandMsg);
+				}
+		}
 		//Delete command if it is not in robot_spam channel and not a private message
-		if(msg.channel.id != config.channels.robotSpamChannel && msg.channel.type != "dm")
-			msg.delete( config.CommandsDeleteTimeSec*1000 )
-    }
-})
+		if (msg.channel.id != config.channels.robotSpamChannel && msg.channel.type != "dm")
+			msg.delete(config.CommandsDeleteTimeSec * 1000)
+	}
+});
+
+//Update members cache if new member joined
+bot.on('guildMemberAdd', member => {
+
+	bot.guilds.get(config.guildId).fetchMember(member.id)
+		.then(logger.info("New Member joined: '" + member.user.username + "' (" + member.id + ")!"));
+
+});
+
+bot.on("error", (e) => logger.error(e));
+bot.on("warn", (e) => logger.warn(e));

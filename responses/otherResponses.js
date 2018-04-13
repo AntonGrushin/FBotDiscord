@@ -7,7 +7,7 @@ module.exports = {
 	HelpNotify : "Instructions are sent in private chat!",
 	NotifyMeResponce : "(temp)Noticifation ON. To cancel type !notifyme off",
 	NotifyMeCancel : "(temp)Notification OFF",
-	AuthMessage : "You have been authorized, thank you! Your roles will be updated within one minute.",
+	AuthMessage : "You have been authorized, thank you! Your roles will be updated within one minute.\nIf you joined current lobby before you got this message, type **!stats** in the lobby to update your status, otherwise you won't get appearance perks in current game.",
 	AuthMessageChanged : "Your authorization has been updated, thank you!",
 	RandomQuoteWrong : "You need to supply name and server (both can be partial). Example: !quote someone@useast",
 	CommandNotAllowedHere : "This command is not allowed here",

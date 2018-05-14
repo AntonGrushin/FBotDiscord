@@ -252,7 +252,7 @@ function check_current_lobby_game( callback ) {
 								
 								//report to wc3_log channel
 								if(config.ReportIPs)
-									sendMessage(config.channels.wc3logchannel, '**'+PlayersList[i][1]+'**@'+serverShort(PlayersList[i][6])+': IP: __'+PlayersList[i][3]+'__, host: __'+PlayersList[i][4]+'__, (__'+PlayersList[i][5]+'__)' );
+									sendMessage(config.channels.wc3logchannel, '**'+PlayersList[i][1]+'**@'+serverShort(PlayersList[i][6])+': IP: '+PlayersList[i][3]+', host: __'+PlayersList[i][4]+'__, (__'+PlayersList[i][5]+'__)' );
 							}
 							//Add this player to Players[]
 							/*	Players Array Structure
@@ -596,10 +596,10 @@ bot.on('message', msg => {
 		if (msg.channel.id == config.channels.ingamelobbychannel)
 			channelName = config.LobbyChannelBaseName;
 		else
-			if (bot.channels[msg.channel.id])
-				channelName = bot.channels[msg.channel.id].name;
-			else
+            if (msg.guild === null)
 				channelName = "Private";
+            else
+                channelName = msg.channel.name;
 
 		var writeThis = msg.createdTimestamp + " " + msg.author.username + " (ID:" + msg.author.id + "): " + msg.content + "\n"
 

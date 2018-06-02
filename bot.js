@@ -635,8 +635,13 @@ bot.on('message', msg => {
 		}
 	}
 	//Delete bot reply
-	if ((msg.content == responses.UnknownCommandMsg || msg.content == responses.HelpNotify || msg.content == responses.UnknownArgument || msg.content == responses.UnknownAuthCode || msg.content == responses.AuthMessage || msg.content == responses.AuthMessageChanged || msg.content == responses.RandomQuoteWrong || msg.content == responses.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID) {
-		msg.delete(config.InfMsgDisplayTimeSec * 1000);
+	//if ((msg.content == responses.UnknownCommandMsg || msg.content == responses.HelpNotify || msg.content == responses.UnknownArgument || msg.content == responses.UnknownAuthCode || msg.content == responses.AuthMessage || msg.content == responses.AuthMessageChanged || msg.content == responses.RandomQuoteWrong || msg.content == responses.CommandNotAllowedHere) && msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.author.id == config.channels.botSelfUserID) {
+	//	msg.delete(config.InfMsgDisplayTimeSec * 1000);
+	//}
+	//Delete everything except when in DM (Direct Message), robot_spam, in-game-lobby or quote reply
+	if (msg.channel.type != "dm" && msg.channel.id != config.channels.robotSpamChannel && msg.channel.id != config.channels.ingamelobbychannel && msg.author.id == config.channels.botSelfUserID) {
+		if (msg.content.search("once said") == -1)
+			msg.delete(config.InfMsgDisplayTimeSec * 1000);
 	}
 
 

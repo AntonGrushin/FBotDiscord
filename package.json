@@ -10,7 +10,7 @@
     "bufferutil": "^3.0.3",
     "discord.js": "^11.3.2",
     "emoji-replace": "^1.0.1",
-    "knex": "^0.12.7",
+    "knex": "^0.19.5",
     "mysql": "^2.13.0",
     "node-emoji": "^1.8.1",
     "node-schedule": "^1.2.0",
